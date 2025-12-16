@@ -51,9 +51,11 @@ def test_enforces_product_minima_ratios():
     engine = PricingEngine()
     prices = build_complete_consistent_prices()
 
-    for k in list(prices.keys()):
-        if k.startswith("limited_casco_") or k.startswith("casco_"):
-            prices[k] *= 0.05
+    # Create an ordering violation WITHOUT triggering MTPL anchor:
+    # Make MTPL larger than both LC and Casco minima.
+    lc_min0 = min(v for k, v in prices.items() if k.startswith("limited_casco_"))
+    c_min0  = min(v for k, v in prices.items() if k.startswith("casco_"))
+    prices["mtpl"] = max(lc_min0, c_min0) + 100.0  # enough to violate both
 
     res = engine.validate_and_fix(prices)
     fixed = res.fixed_prices

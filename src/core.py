@@ -94,3 +94,20 @@ def group_by_product_and_deductible(items: List[PricingItem]) -> Dict[Tuple[str,
             continue
         out.setdefault((it.product, it.deductible), {})[it.variant] = it.key
     return out
+
+def group_by_variant_and_deductible(items: List[PricingItem]) -> Dict[Tuple[str, int], Dict[str, str]]:
+    """
+    (variant, deductible) -> {product -> key}
+
+    Example:
+        ('basic', 100) -> {
+            'limited_casco': 'limited_casco_basic_100',
+            'casco': 'casco_basic_100'
+        }
+    """
+    out: Dict[Tuple[str, int], Dict[str, str]] = {}
+    for it in items:
+        if it.product == "mtpl":
+            continue
+        out.setdefault((it.variant, it.deductible), {})[it.product] = it.key
+    return out

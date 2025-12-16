@@ -15,6 +15,7 @@ from src.core import (
     keys_by_product,
     group_by_product_and_variant,
     group_by_product_and_deductible,
+    group_by_variant_and_deductible,
 )
 
 
@@ -40,6 +41,13 @@ class DefaultPriceFixer(BasePriceFixer):
         return changed
 
     def set_mtpl_anchor(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
+        """
+        We need to set an MTPL anchor as an reference to validate and fix other prices.
+        We can just take MTPL from price input dictionary
+        This could fail if MTPL is too large relative to its average compared to other products.
+        Therefore, we take MTPL as an anchor unless it is an outlier, otherwsie we scale it based on its average of 400.
+        """
+        
         by_product = keys_by_product(items)
 
         mtpl = float(prices["mtpl"])
@@ -75,6 +83,23 @@ class DefaultPriceFixer(BasePriceFixer):
         return changed
 
     def enforce_product_minima_ratios(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
+        """
+        Enforce product-type ordering relative to MTPL.
+
+        Rule: MTPL must be cheaper than all Limited Casco and Casco products
+        (i.e., mtpl < min(limited_casco) and mtpl < min(casco)).
+
+        Fix (only if the rule is violated for a given product group):
+        - Define the target minimum using reference average ratios:
+            target_min(limited_casco) = (700/400) * mtpl
+            target_min(casco)         = (900/400) * mtpl
+        - Let current_min be the current minimum price in that group.
+        Scale the entire group by:
+            scale = target_min / current_min
+        so the group's minimum becomes target_min while preserving relative
+        price differences within the group.
+        """
+
         changed = False
         mtpl = float(prices["mtpl"])
         by_product = keys_by_product(items)
@@ -83,60 +108,127 @@ class DefaultPriceFixer(BasePriceFixer):
             keys = by_product.get(product, [])
             if not keys:
                 continue
+
             current_min = min(float(prices[k]) for k in keys)
+            if current_min > mtpl:
+                continue
+
             target_min = ratio * mtpl
-            if current_min < target_min:
-                scale = target_min / current_min
-                for k in keys:
-                    prices[k] = float(prices[k]) * scale
-                report.log(f"[product-min] scaled {product} by {scale:.6f}")
-                changed = True
+            scale = target_min / current_min
+
+            for k in keys:
+                prices[k] = float(prices[k]) * scale
+
+            report.log(f"[product-min] scaled {product} by {scale:.6f} (min {current_min:.6f} -> {target_min:.6f})")
+            changed = True
 
         return changed
 
-    def enforce_limited_casco_less_than_casco(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
-        changed = False
-        lc_lookup = {}
-        for it in items:
-            if it.product == "limited_casco":
-                lc_lookup[(it.variant, it.deductible)] = it.key
 
-        for it in items:
-            if it.product == "casco":
-                lk = lc_lookup.get((it.variant, it.deductible))
-                if lk is None:
-                    continue
-                if float(prices[it.key]) <= float(prices[lk]):
-                    old = float(prices[it.key])
-                    new = float(prices[lk]) + self.eps
-                    prices[it.key] = float(new)
-                    report.log(f"[product] {it.key}: {old:.6f} -> {new:.6f} (>{lk})")
-                    changed = True
+    def enforce_limited_casco_less_than_casco(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
+        """
+            Enforce product-type ordering between Limited Casco and Casco for matching
+            (variant, deductible) combinations.
+
+            Rule: limited_casco(v, d) < casco(v, d).
+
+            Fix (only if the rule is violated):
+            - If casco(v, d) <= limited_casco(v, d), raise casco(v, d) using the
+            reference average tier ratio:
+                casco(v, d) := (900 / 700) * limited_casco(v, d)
+
+            No adjustment is applied when the ordering is already satisfied.
+        """
+        changed = False
+        ratio = REFERENCE_AVG_PRICE["casco"] / REFERENCE_AVG_PRICE["limited_casco"]
+
+        grouped = group_by_variant_and_deductible(items)
+
+        for (_variant, _deductible), m in grouped.items():
+            if "limited_casco" not in m or "casco" not in m:
+                continue
+
+            lc_key = m["limited_casco"]
+            c_key = m["casco"]
+
+            lc_price = float(prices[lc_key])
+            c_price = float(prices[c_key])
+
+            if c_price > lc_price:
+                continue
+
+            target = ratio * lc_price
+            prices[c_key] = float(target)
+            report.log(
+                f"[product] {c_key}: {c_price:.6f} -> {target:.6f} (rebase vs {lc_key})"
+            )
+            changed = True
 
         return changed
 
     def enforce_deductible_order(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
+        """
+            Enforce deductible monotonicity within each (product, variant).
+
+            Rule:
+                price(100) > price(200) > price(500)
+
+            Fix (only if violated):
+            Rebuild the entire deductible ladder from the price(100) base using
+            reference percentage factors:
+                price(200) := DEDUCTIBLE_FACTOR[200] * price(100)
+                price(500) := DEDUCTIBLE_FACTOR[500] * price(100)
+
+            If the ordering is already satisfied, no changes are applied.
+        """
         changed = False
         grouped = group_by_product_and_variant(items)
 
         for (_product, _variant), m in grouped.items():
             if 100 not in m:
                 continue
-            base = float(prices[m[100]])
 
+            p100 = float(prices[m[100]])
+
+            # Check for violations
+            violates = False
+            if 200 in m and not (p100 > float(prices[m[200]])):
+                violates = True
+            if 500 in m and 200 in m and not (float(prices[m[200]]) > float(prices[m[500]])):
+                violates = True
+
+            if not violates:
+                continue
+
+            # Fix by rebasing from 100
             for d in (200, 500):
                 if d not in m:
                     continue
-                target = DEDUCTIBLE_FACTOR[d] * base
+                target = DEDUCTIBLE_FACTOR[d] * p100
                 old = float(prices[m[d]])
-                if abs(old - target) > 1e-12:
-                    prices[m[d]] = float(target)
-                    report.log(f"[deductible] {m[d]}: {old:.6f} -> {target:.6f}")
-                    changed = True
+                prices[m[d]] = float(target)
+                report.log(f"[deductible] {m[d]}: {old:.6f} -> {target:.6f}")
+                changed = True
 
         return changed
+    
 
     def enforce_variant_order(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
+        """
+    Enforce variant monotonicity within each (product, deductible).
+
+    Rule:
+        base := max(price(compact), price(basic))
+        base < comfort < premium
+
+    Fix (only if violated):
+        Rebuild the entire variant ladder from the base using
+        reference percentage factors:
+            comfort := VARIANT_FACTOR["comfort"] * base
+            premium := VARIANT_FACTOR["premium"] * base
+
+    If no violation is detected, no changes are applied.
+    """
         changed = False
         grouped = group_by_product_and_deductible(items)
 
@@ -144,16 +236,37 @@ class DefaultPriceFixer(BasePriceFixer):
             base_keys = [m[v] for v in ("compact", "basic") if v in m]
             if not base_keys:
                 continue
+
             base = max(float(prices[k]) for k in base_keys)
 
-            for v in ("comfort", "premium"):
-                if v not in m:
-                    continue
-                target = VARIANT_FACTOR[v] * base
-                old = float(prices[m[v]])
-                if old < target - 1e-12:
-                    prices[m[v]] = float(target)
-                    report.log(f"[variant] {m[v]}: {old:.6f} -> {target:.6f}")
-                    changed = True
+            # --- detect violations ---
+            violates = False
+
+            if "comfort" in m:
+                if float(prices[m["comfort"]]) <= base:
+                    violates = True
+
+            if "premium" in m:
+                lower = float(prices[m["comfort"]]) if "comfort" in m else base
+                if float(prices[m["premium"]]) <= lower:
+                    violates = True
+
+            if not violates:
+                continue
+
+            # --- fix entire ladder ---
+            if "comfort" in m:
+                old = float(prices[m["comfort"]])
+                target = VARIANT_FACTOR["comfort"] * base
+                prices[m["comfort"]] = float(target)
+                report.log(f"[variant] {m['comfort']}: {old:.6f} -> {target:.6f}")
+                changed = True
+
+            if "premium" in m:
+                old = float(prices[m["premium"]])
+                target = VARIANT_FACTOR["premium"] * base
+                prices[m["premium"]] = float(target)
+                report.log(f"[variant] {m['premium']}: {old:.6f} -> {target:.6f}")
+                changed = True
 
         return changed
