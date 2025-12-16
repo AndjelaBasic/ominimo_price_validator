@@ -199,7 +199,7 @@ class DefaultPriceFixer(BasePriceFixer):
             p100 = float(prices[m[Deductible.D100]])
 
             violates = False
-            if Deductible.D200 in m and not (p100 > float(prices[m[Deductible.D200]])):
+            if Deductible.D200 in m and (p100 <= float(prices[m[Deductible.D200]])):
                 violates = True
             if (
                 Deductible.D200 in m
@@ -211,7 +211,7 @@ class DefaultPriceFixer(BasePriceFixer):
             if not violates:
                 continue
 
-            # Fix by rebasing from 100
+            # Fix entire ladder from 100 base
             for d in (Deductible.D200, Deductible.D500):
                 if d not in m:
                     continue
