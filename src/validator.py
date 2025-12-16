@@ -1,3 +1,4 @@
+# src/validator.py
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -6,10 +7,13 @@ from typing import Dict, List
 from src.core import (
     PricingItem,
     Violation,
+    Product,
+    Variant,
+    Deductible,
     keys_by_product,
     group_by_product_and_variant,
     group_by_product_and_deductible,
-    group_by_variant_and_deductible
+    group_by_variant_and_deductible,
 )
 
 
@@ -19,7 +23,7 @@ class BasePriceValidator(ABC):
         raise NotImplementedError
 
 
-class DefaultPriceVlidator(BasePriceValidator):
+class DefaultPriceValidator(BasePriceValidator):
     """
     Validates monotonicity constraints by product type, variant and deductible.
     Does not modify prices.
@@ -29,11 +33,15 @@ class DefaultPriceVlidator(BasePriceValidator):
         p = {k: float(v) for k, v in prices.items()}
         violations: List[Violation] = []
 
-        # Product-level: MTPL must be cheaper than both groups' minima
-        mtpl = p["mtpl"]
+        # Product-level: MTPL must be cheaper than both groups' minima 
+        mtpl_key = Product.MTPL.key
+        if mtpl_key not in p:
+            raise ValueError(f"Input must contain key '{mtpl_key}'.")
+
+        mtpl = p[mtpl_key]
         by_product = keys_by_product(items)
 
-        for prod in ("limited_casco", "casco"):
+        for prod in (Product.LIMITED_CASCO, Product.CASCO):
             keys = by_product.get(prod, [])
             if not keys:
                 continue
@@ -42,22 +50,22 @@ class DefaultPriceVlidator(BasePriceValidator):
                 violations.append(
                     Violation(
                         category="product",
-                        rule=f"mtpl < min({prod})",
-                        message="MTPL must be cheaper than the cheapest policy in this group.",
-                        left_key="mtpl",
-                        right_key=f"min({prod})",
+                        rule=f"{mtpl_key} < min({prod.key})",
+                        message=f"{mtpl_key} must be cheaper than the cheapest policy in {prod.key}.",
+                        left_key=mtpl_key,
+                        right_key=f"min({prod.key})",
                         left_value=mtpl,
                         right_value=group_min,
                     )
                 )
 
-        # Product-level: limited_casco(v,d) < casco(v,d) for matching (variant, deductible)
+        # Product-level: LIMITED_CASCO(v,d) < CASCO(v,d) for matching (variant, deductible) ---
         for (_variant, _deductible), m in group_by_variant_and_deductible(items).items():
-            if "limited_casco" not in m or "casco" not in m:
+            if Product.LIMITED_CASCO not in m or Product.CASCO not in m:
                 continue
 
-            lc_key = m["limited_casco"]
-            c_key = m["casco"]
+            lc_key = m[Product.LIMITED_CASCO]
+            c_key = m[Product.CASCO]
 
             if not (p[lc_key] < p[c_key]):
                 violations.append(
@@ -72,65 +80,77 @@ class DefaultPriceVlidator(BasePriceValidator):
                     )
                 )
 
-        # Deductible-level: within (product, variant): 100 > 200 > 500
+        # Deductible-level: within (product, variant): 100 > 200 > 500 ---
         for (prod, var), m in group_by_product_and_variant(items).items():
-            if 100 in m and 200 in m and not (p[m[100]] > p[m[200]]):
-                violations.append(
-                    Violation(
-                        "deductible",
-                        "100 > 200",
-                        f"{prod}_{var}: 100 must be more expensive than 200.",
-                        m[100],
-                        m[200],
-                        p[m[100]],
-                        p[m[200]],
-                    )
-                )
-            if 200 in m and 500 in m and not (p[m[200]] > p[m[500]]):
-                violations.append(
-                    Violation(
-                        "deductible",
-                        "200 > 500",
-                        f"{prod}_{var}: 200 must be more expensive than 500.",
-                        m[200],
-                        m[500],
-                        p[m[200]],
-                        p[m[500]],
-                    )
-                )
-
-        # Variant-level: within (product, deductible): base=max(compact,basic) < comfort < premium
-        for (prod, ded), m in group_by_product_and_deductible(items).items():
-            base_keys = [m[v] for v in ("compact", "basic") if v in m]
-            if not base_keys:
-                continue
-            base = max(p[k] for k in base_keys)
-
-            if "comfort" in m and not (base < p[m["comfort"]]):
-                violations.append(
-                    Violation(
-                        "variant",
-                        "base < comfort",
-                        f"{prod}_{ded}: comfort must be above compact/basic base.",
-                        "base(compact/basic)",
-                        m["comfort"],
-                        base,
-                        p[m["comfort"]],
-                    )
-                )
-
-            if "premium" in m:
-                lower = p[m["comfort"]] if "comfort" in m else base
-                if not (lower < p[m["premium"]]):
+            if Deductible.D100 in m and Deductible.D200 in m:
+                k100 = m[Deductible.D100]
+                k200 = m[Deductible.D200]
+                if not (p[k100] > p[k200]):
                     violations.append(
                         Violation(
-                            "variant",
-                            "comfort/base < premium",
-                            f"{prod}_{ded}: premium must be above comfort/base.",
-                            ("comfort" if "comfort" in m else "base(compact/basic)"),
-                            m["premium"],
-                            lower,
-                            p[m["premium"]],
+                            category="deductible",
+                            rule="100 > 200",
+                            message=f"{prod.key}_{var.key}: 100 must be more expensive than 200.",
+                            left_key=k100,
+                            right_key=k200,
+                            left_value=p[k100],
+                            right_value=p[k200],
+                        )
+                    )
+
+            if Deductible.D200 in m and Deductible.D500 in m:
+                k200 = m[Deductible.D200]
+                k500 = m[Deductible.D500]
+                if not (p[k200] > p[k500]):
+                    violations.append(
+                        Violation(
+                            category="deductible",
+                            rule="200 > 500",
+                            message=f"{prod.key}_{var.key}: 200 must be more expensive than 500.",
+                            left_key=k200,
+                            right_key=k500,
+                            left_value=p[k200],
+                            right_value=p[k500],
+                        )
+                    )
+
+        # Variant-level: within (product, deductible): base=max(compact,basic) < comfort < premium ---
+        for (prod, ded), m in group_by_product_and_deductible(items).items():
+            base_keys = [m[v] for v in (Variant.COMPACT, Variant.BASIC) if v in m]
+            if not base_keys:
+                continue
+
+            base = max(p[k] for k in base_keys)
+
+            if Variant.COMFORT in m:
+                comfort_key = m[Variant.COMFORT]
+                if not (base < p[comfort_key]):
+                    violations.append(
+                        Violation(
+                            category="variant",
+                            rule="base < comfort",
+                            message=f"{prod.key}_{ded.value}: comfort must be above compact/basic base.",
+                            left_key="base(compact/basic)",
+                            right_key=comfort_key,
+                            left_value=base,
+                            right_value=p[comfort_key],
+                        )
+                    )
+
+            if Variant.PREMIUM in m:
+                premium_key = m[Variant.PREMIUM]
+                lower = p[m[Variant.COMFORT]] if Variant.COMFORT in m else base
+                left_name = "comfort" if Variant.COMFORT in m else "base(compact/basic)"
+                if not (lower < p[premium_key]):
+                    violations.append(
+                        Violation(
+                            category="variant",
+                            rule="comfort/base < premium",
+                            message=f"{prod.key}_{ded.value}: premium must be above comfort/base.",
+                            left_key=left_name,
+                            right_key=premium_key,
+                            left_value=lower,
+                            right_value=p[premium_key],
                         )
                     )
 

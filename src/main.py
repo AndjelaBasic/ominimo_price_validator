@@ -4,7 +4,7 @@ from typing import Dict
 
 from src.core import FixResult, FixReport
 from src.parser import DefaultPriceParser, BasePriceParser
-from src.validator import DefaultPriceVlidator, BasePriceValidator
+from src.validator import DefaultPriceValidator, BasePriceValidator
 from src.fixer import DefaultPriceFixer, BasePriceFixer
 
 
@@ -12,7 +12,7 @@ class PricingEngine:
     def __init__(
         self,
         parser: BasePriceParser = DefaultPriceParser(),
-        validator: BasePriceValidator = DefaultPriceVlidator(),
+        validator: BasePriceValidator = DefaultPriceValidator(),
         fixer: BasePriceFixer = DefaultPriceFixer(),
         *,
         max_iterations: int = 10,
