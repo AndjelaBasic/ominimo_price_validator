@@ -17,10 +17,10 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## Run tests
+## Run tests (from the project root)
 ```python -m pytest -q```
 
-## Run main 
+## Run main (from the project root)
 ```python -m src.main```
 
 # 2. Problem statement and proposed solution
