@@ -14,13 +14,7 @@ from src.core import (
     RATIO_C_OVER_LC,
 )
 
-# Optional enums (depending on your current core.py)
-try:
-    from src.core import Deductible, Variant
-except Exception:  # pragma: no cover
-    Deductible = None  # type: ignore
-    Variant = None  # type: ignore
-
+from src.core import Deductible, Variant
 
 def deductible_factor(d: int) -> float:
     """

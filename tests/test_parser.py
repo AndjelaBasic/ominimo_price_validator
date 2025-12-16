@@ -4,15 +4,7 @@ from __future__ import annotations
 import pytest
 
 from src.parser import DefaultPriceParser
-
-# Optional enums (depending on your current core.py)
-try:
-    from src.core import Product, Variant, Deductible
-except Exception:  # pragma: no cover
-    Product = None  # type: ignore
-    Variant = None  # type: ignore
-    Deductible = None  # type: ignore
-
+from src.core import Product, Variant, Deductible
 
 def test_parse_mtpl():
     p = DefaultPriceParser()
