@@ -72,9 +72,9 @@ VALID_DEDUCTIBLES: frozenset[Deductible] = frozenset(Deductible)
 @dataclass(frozen=True)
 class PricingItem:
     """
-    Parsed representation of a key in the prices dict.
-    - MTPL has variant=None and deductible=None.
-    - Non-MTPL keys always have variant and deductible.
+        Parsed representation of a key in the prices dict.
+        - MTPL has variant=None and deductible=None.
+        - Non-MTPL keys always have variant and deductible.
     """
     key: str
     product: Product
@@ -117,7 +117,7 @@ class FixResult:
 
 def keys_by_product(items: List[PricingItem]) -> Dict[Product, List[str]]:
     """
-    Product -> list of original dict keys.
+        Product -> list of original dict keys.
     """
     out: Dict[Product, List[str]] = {}
     for it in items:
@@ -127,7 +127,7 @@ def keys_by_product(items: List[PricingItem]) -> Dict[Product, List[str]]:
 
 def group_by_product_and_variant(items: List[PricingItem]) -> Dict[Tuple[Product, Variant], Dict[Deductible, str]]:
     """
-    (product, variant) -> {deductible -> key}
+        (product, variant) -> {deductible -> key}
     """
     out: Dict[Tuple[Product, Variant], Dict[Deductible, str]] = {}
     for it in items:
@@ -142,7 +142,7 @@ def group_by_product_and_variant(items: List[PricingItem]) -> Dict[Tuple[Product
 
 def group_by_product_and_deductible(items: List[PricingItem]) -> Dict[Tuple[Product, Deductible], Dict[Variant, str]]:
     """
-    (product, deductible) -> {variant -> key}
+        (product, deductible) -> {variant -> key}
     """
     out: Dict[Tuple[Product, Deductible], Dict[Variant, str]] = {}
     for it in items:
@@ -156,13 +156,13 @@ def group_by_product_and_deductible(items: List[PricingItem]) -> Dict[Tuple[Prod
 
 def group_by_variant_and_deductible(items: List[PricingItem]) -> Dict[Tuple[Variant, Deductible], Dict[Product, str]]:
     """
-    (variant, deductible) -> {product -> key}
+        (variant, deductible) -> {product -> key}
 
-    Example:
-        (Variant.BASIC, Deductible.D100) -> {
-            Product.LIMITED_CASCO: 'limited_casco_basic_100',
-            Product.CASCO: 'casco_basic_100'
-        }
+        Example:
+            (Variant.BASIC, Deductible.D100) -> {
+                Product.LIMITED_CASCO: 'limited_casco_basic_100',
+                Product.CASCO: 'casco_basic_100'
+            }
     """
     out: Dict[Tuple[Variant, Deductible], Dict[Product, str]] = {}
     for it in items:

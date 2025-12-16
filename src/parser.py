@@ -27,9 +27,9 @@ class DefaultPriceParser(BasePriceParser):
       - "mtpl"
       - "{limited_casco|casco}_{variant}_{deductible}"
     where:
-      product ∈ {limited_casco, casco}
-      variant ∈ {compact, basic, comfort, premium}
-      deductible ∈ {100, 200, 500}
+      product in {limited_casco, casco}
+      variant in {compact, basic, comfort, premium}
+      deductible in {100, 200, 500}
     """
 
     pattern = re.compile(
