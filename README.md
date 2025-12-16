@@ -1,12 +1,12 @@
 This readme contains details on probelm statement and proposed solution as well as instructions on how to run the code.
 
 # 1. Instructions on how to run the code
-## Requirements
+## Environment
 
-- **Python**: 3.12 (recommended)
-- **pip**: 25.x+
+- **Python**: 3.12.8
+- **pip**: 25.3
 
-## Setup (run below commands from the project root one by one)
+## Setup (run below commands from the project root one by one; this is for Windows)
 ```
 python -m venv .venv
 
@@ -82,7 +82,7 @@ Within each `(product, deductible)`:
 
 The solution is implemented as an **iterative validation–repair engine** with three clearly separated concerns:
 
-1. **Parsing** – convert raw keys into structured `PricingItem`s  
+1. **Parsing** – convert raw keys into structured `PricingItem` 
 2. **Validation** – detect violations without modifying prices  
 3. **Fixing** – apply deterministic repairs *only when rules are violated*
 
