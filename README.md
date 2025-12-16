@@ -34,9 +34,9 @@ We are given a dictionary of insurance prices keyed by product identifiers, e.g.
 
 where:
 
-- **Product type** ∈ {MTPL, Limited Casco, Casco}
-- **Variant** ∈ {compact, basic, comfort, premium}
-- **Deductible** ∈ {100€, 200€, 500€}
+- **Product type** in {MTPL, Limited Casco, Casco}
+- **Variant** in {compact, basic, comfort, premium}
+- **Deductible** in {100, 200, 500}
 
 The task is to **validate** and **automatically fix** pricing inconsistencies according to business rules and reference pricing structure.
 
@@ -69,7 +69,7 @@ For matching `(variant, deductible)` combinations:
 ### 2. Deductible Ordering
 
 Within each `(product, variant)`: 
-- `price(100€) > price(200€) > price(500€)`
+- `price(100) > price(200) > price(500)`
 - Higher deductible lowers price.
 
 ### 3. Variant Ordering
