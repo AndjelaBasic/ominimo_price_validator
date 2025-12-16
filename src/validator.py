@@ -24,8 +24,8 @@ class BasePriceValidator(ABC):
 
 class DefaultPriceValidator(BasePriceValidator):
     """
-    Validates monotonicity constraints by product type, variant and deductible.
-    Does not modify prices.
+        Validates monotonicity constraints by product type, variant and deductible.
+        Does not modify prices.
     """
 
     def validate(self, prices: Dict[str, float], items: List[PricingItem]) -> List[Violation]:

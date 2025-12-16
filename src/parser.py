@@ -23,13 +23,13 @@ class BasePriceParser(ABC):
 
 class DefaultPriceParser(BasePriceParser):
     """
-    Parses:
-      - "mtpl"
-      - "{limited_casco|casco}_{variant}_{deductible}"
-    where:
-      product in {limited_casco, casco}
-      variant in {compact, basic, comfort, premium}
-      deductible in {100, 200, 500}
+        Parses:
+        - "mtpl"
+        - "{limited_casco|casco}_{variant}_{deductible}"
+        where:
+        product in {limited_casco, casco}
+        variant in {compact, basic, comfort, premium}
+        deductible in {100, 200, 500}
     """
 
     pattern = re.compile(
