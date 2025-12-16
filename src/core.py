@@ -9,9 +9,10 @@ REFERENCE_AVG_PRICE: dict[str, float] = {
     "limited_casco": 700.0,
     "casco": 900.0,
 }
-
+ 
 RATIO_LC_OVER_MTPL: float = REFERENCE_AVG_PRICE["limited_casco"] / REFERENCE_AVG_PRICE["mtpl"]  # 1.75
 RATIO_C_OVER_MTPL: float = REFERENCE_AVG_PRICE["casco"] / REFERENCE_AVG_PRICE["mtpl"]          # 2.25
+RATIO_C_OVER_LC: float = REFERENCE_AVG_PRICE["casco"] / REFERENCE_AVG_PRICE["limited_casco"] # 1.29
 
 # Deductible steps: 100 baseline, each step ~10% cheaper
 DEDUCTIBLE_FACTOR: dict[int, float] = {100: 1.00, 200: 0.90, 500: 0.80}

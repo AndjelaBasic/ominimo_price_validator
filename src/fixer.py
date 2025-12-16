@@ -42,10 +42,12 @@ class DefaultPriceFixer(BasePriceFixer):
 
     def set_mtpl_anchor(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
         """
-        We need to set an MTPL anchor as an reference to validate and fix other prices.
-        We can just take MTPL from price input dictionary
-        This could fail if MTPL is too large relative to its average compared to other products.
-        Therefore, we take MTPL as an anchor unless it is an outlier, otherwsie we scale it based on its average of 400.
+            We need to set an MTPL anchor as an reference to validate and fix other prices.
+            We can just take MTPL from price input dictionary
+            
+            This could fail if MTPL is too large relative to its average compared to other products.
+            Therefore, we take MTPL as an anchor unless it is an outlier,
+            otherwsie we scale it based on its average of 400.
         """
         
         by_product = keys_by_product(items)
@@ -84,22 +86,21 @@ class DefaultPriceFixer(BasePriceFixer):
 
     def enforce_product_minima_ratios(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
         """
-        Enforce product-type ordering relative to MTPL.
+            Enforce product-type ordering relative to MTPL.
 
-        Rule: MTPL must be cheaper than all Limited Casco and Casco products
-        (i.e., mtpl < min(limited_casco) and mtpl < min(casco)).
+            Rule: MTPL must be cheaper than all Limited Casco and Casco products
+            (i.e., mtpl < min(limited_casco) and mtpl < min(casco)).
 
-        Fix (only if the rule is violated for a given product group):
-        - Define the target minimum using reference average ratios:
-            target_min(limited_casco) = (700/400) * mtpl
-            target_min(casco)         = (900/400) * mtpl
-        - Let current_min be the current minimum price in that group.
-        Scale the entire group by:
-            scale = target_min / current_min
-        so the group's minimum becomes target_min while preserving relative
-        price differences within the group.
+            Fix (only if the rule is violated for a given product group):
+            - Define the target minimum using reference average ratios:
+                target_min(limited_casco) = (700/400) * mtpl
+                target_min(casco)         = (900/400) * mtpl
+            - Let current_min be the current minimum price in that group.
+            Scale the entire group by:
+                scale = target_min / current_min
+            so the group's minimum becomes target_min while preserving relative
+            price differences within the group.
         """
-
         changed = False
         mtpl = float(prices["mtpl"])
         by_product = keys_by_product(items)
@@ -215,20 +216,20 @@ class DefaultPriceFixer(BasePriceFixer):
 
     def enforce_variant_order(self, prices: Dict[str, float], items: List[PricingItem], report: FixReport) -> bool:
         """
-    Enforce variant monotonicity within each (product, deductible).
+            Enforce variant monotonicity within each (product, deductible).
 
-    Rule:
-        base := max(price(compact), price(basic))
-        base < comfort < premium
+            Rule:
+                base := max(price(compact), price(basic))
+                base < comfort < premium
 
-    Fix (only if violated):
-        Rebuild the entire variant ladder from the base using
-        reference percentage factors:
-            comfort := VARIANT_FACTOR["comfort"] * base
-            premium := VARIANT_FACTOR["premium"] * base
+            Fix (only if violated):
+                Rebuild the entire variant ladder from the base using
+                reference percentage factors:
+                    comfort := VARIANT_FACTOR["comfort"] * base
+                    premium := VARIANT_FACTOR["premium"] * base
 
-    If no violation is detected, no changes are applied.
-    """
+            If no violation is detected, no changes are applied.
+        """
         changed = False
         grouped = group_by_product_and_deductible(items)
 
@@ -239,7 +240,7 @@ class DefaultPriceFixer(BasePriceFixer):
 
             base = max(float(prices[k]) for k in base_keys)
 
-            # --- detect violations ---
+            # detect violations
             violates = False
 
             if "comfort" in m:
@@ -254,7 +255,7 @@ class DefaultPriceFixer(BasePriceFixer):
             if not violates:
                 continue
 
-            # --- fix entire ladder ---
+            # fix entire ladder
             if "comfort" in m:
                 old = float(prices[m["comfort"]])
                 target = VARIANT_FACTOR["comfort"] * base
