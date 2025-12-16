@@ -4,11 +4,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
-
-# =========================
-# Enums (no magic strings)
-# =========================
-
 class Product(Enum):
     MTPL = "mtpl"
     LIMITED_CASCO = "limited_casco"
@@ -41,11 +36,7 @@ class Deductible(Enum):
         """Numeric deductible amount."""
         return int(self.value)
 
-
-# =========================
 # Reference prices & factors
-# =========================
-
 REFERENCE_AVG_PRICE: dict[Product, float] = {
     Product.MTPL: 400.0,
     Product.LIMITED_CASCO: 700.0,
@@ -76,9 +67,7 @@ VALID_VARIANTS: frozenset[Variant] = frozenset(Variant)
 VALID_DEDUCTIBLES: frozenset[Deductible] = frozenset(Deductible)
 
 
-# =========================
 # Parsed representation
-# =========================
 
 @dataclass(frozen=True)
 class PricingItem:
@@ -93,9 +82,7 @@ class PricingItem:
     deductible: Optional[Deductible]
 
 
-# =========================
 # Validation & fixing reports
-# =========================
 
 @dataclass(frozen=True)
 class Violation:
@@ -126,9 +113,7 @@ class FixResult:
     report: FixReport
 
 
-# =========================
 # Helpers
-# =========================
 
 def keys_by_product(items: List[PricingItem]) -> Dict[Product, List[str]]:
     """
